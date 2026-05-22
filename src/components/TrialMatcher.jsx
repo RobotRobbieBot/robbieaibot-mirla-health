@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Search, ExternalLink, MapPin, Users, Calendar, Phone, Mail } from 'lucide-react';
 
-const API = 'http://localhost:3001';
+import API from '../api';
 const DRUGS = ['Tocilizumab','Nintedanib','Dasatinib','Baricitinib','Tofacitinib','Abatacept','Rituximab','Imatinib','Pirfenidone','Belimumab','Lenabasum'];
 const card = { background:'linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(254,252,232,.3) 100%)', borderRadius:'1.5rem', padding:'2rem', border:'1px solid #fde68a', marginBottom:'1.5rem' };
 

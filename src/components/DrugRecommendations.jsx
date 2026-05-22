@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:3001';
+import API from '../api';
 
 function ScoreBar({ value, label }) {
   const color = value >= 80 ? 'bg-green-400' : value >= 60 ? 'bg-yellow-400' : 'bg-amber-400';

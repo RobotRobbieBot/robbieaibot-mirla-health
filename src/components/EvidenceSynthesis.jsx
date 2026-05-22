@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:3001';
+import API from '../api';
 
 const DRUG_NAMES = [
   'Tocilizumab', 'Nintedanib', 'Dasatinib', 'Baricitinib', 'Tofacitinib',
