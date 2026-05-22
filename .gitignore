@@ -2,3 +2,8 @@ node_modules/
 build/
 .vercel
 .env*
+
+# SQLite database
+*.db
+*.db-shm
+*.db-wal

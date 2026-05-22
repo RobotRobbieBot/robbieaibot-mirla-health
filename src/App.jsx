@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Calendar, Users, Lightbulb, BookOpen, Microscope, Zap } from 'lucide-react';
+import { Heart, Calendar, Users, Lightbulb, BookOpen, Microscope, Zap, Activity, Upload, FlaskConical, AlertTriangle, ClipboardList, Send } from 'lucide-react';
 
-import OverviewTab     from './components/OverviewTab';
-import AppointmentsTab from './components/AppointmentsTab';
-import DoctorsTab      from './components/DoctorsTab';
-import ExercisesTab    from './components/ExercisesTab';
-import ResearchTab     from './components/ResearchTab';
-import TrialsTab       from './components/TrialsTab';
-import MoonshootsTab   from './components/MoonshootsTab';
-import NotesTab        from './components/NotesTab';
+import OverviewTab         from './components/OverviewTab';
+import AppointmentsTab     from './components/AppointmentsTab';
+import DoctorsTab          from './components/DoctorsTab';
+import ExercisesTab        from './components/ExercisesTab';
+import ResearchTab         from './components/ResearchTab';
+import TrialsTab           from './components/TrialsTab';
+import MoonshootsTab       from './components/MoonshootsTab';
+import NotesTab            from './components/NotesTab';
+import LabDashboard        from './components/LabDashboard';
+import DrugRecommendations from './components/DrugRecommendations';
+import EvidenceSynthesis   from './components/EvidenceSynthesis';
+import TrialMatcher        from './components/TrialMatcher';
+import MirlaDataUpload     from './components/MirlaDataUpload';
+import MirlaNotesSection   from './components/MirlaNotesSection';
+import MonitoringSchedule  from './components/MonitoringSchedule';
+import InteractionChecker  from './components/InteractionChecker';
 
 const DAILY_QUOTES = [
   { quote: "Strength Through Faith", reference: "Philippians 4:13" },
@@ -27,14 +35,25 @@ const getDailyQuote = () => {
 };
 
 const TABS = [
-  { id: 'overview',      label: 'Overview',    icon: Heart },
-  { id: 'appointments',  label: 'Appointments', icon: Calendar },
-  { id: 'doctors',       label: 'Doctors',      icon: Users },
-  { id: 'exercises',     label: 'Exercises',    icon: Lightbulb },
-  { id: 'research',      label: 'Research',     icon: Microscope },
-  { id: 'trials',        label: 'Trials',       icon: Zap },
-  { id: 'moonshots',     label: 'Moonshots',    icon: Zap },
-  { id: 'notes',         label: 'Notes',        icon: BookOpen },
+  // ── Personal ──────────────────────────────────────────────
+  { id: 'overview',      label: 'Overview',       icon: Heart,          group: 'personal' },
+  { id: 'mymirla',       label: 'For You Mirla',  icon: Heart,          group: 'personal' },
+  { id: 'appointments',  label: 'Appointments',   icon: Calendar,       group: 'personal' },
+  { id: 'doctors',       label: 'Doctors',        icon: Users,          group: 'personal' },
+  { id: 'exercises',     label: 'Exercises',      icon: Lightbulb,      group: 'personal' },
+  { id: 'notes',         label: 'Notes',          icon: BookOpen,       group: 'personal' },
+  // ── AI Intelligence ───────────────────────────────────────
+  { id: 'labs',          label: 'Lab Trends',     icon: Activity,       group: 'intel' },
+  { id: 'upload',        label: 'Upload Labs',    icon: Upload,         group: 'intel' },
+  { id: 'drugs',         label: 'AI Drug Rank',   icon: Zap,            group: 'intel' },
+  { id: 'evidence',      label: 'Evidence',       icon: Microscope,     group: 'intel' },
+  { id: 'trialsmatch',   label: 'Trial Match',    icon: FlaskConical,   group: 'intel' },
+  { id: 'interactions',  label: 'Interactions',   icon: AlertTriangle,  group: 'intel' },
+  { id: 'monitoring',    label: 'Monitoring',     icon: ClipboardList,  group: 'intel' },
+  // ── Archive ───────────────────────────────────────────────
+  { id: 'research',      label: 'Research',       icon: Microscope,     group: 'archive' },
+  { id: 'trials',        label: 'Trials',         icon: Zap,            group: 'archive' },
+  { id: 'moonshots',     label: 'Moonshots',      icon: Zap,            group: 'archive' },
 ];
 
 const MirlaHealthHub = () => {
@@ -78,39 +97,56 @@ const MirlaHealthHub = () => {
         </div>
       </header>
 
-      {/* Nav */}
+      {/* Nav — grouped */}
       <nav className="relative z-10 border-b border-amber-200 overflow-x-auto" style={{ background: 'rgba(255, 255, 255, 0.3)' }}>
-        <div className="max-w-4xl mx-auto px-4 flex gap-1 py-3">
-          {TABS.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-full whitespace-nowrap transition-all flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-yellow-200 text-amber-900 font-medium shadow-sm'
-                    : 'bg-white bg-opacity-40 text-amber-700 hover:bg-opacity-60'
-                }`}
-              >
-                <Icon size={16} />
-                {tab.label}
-              </button>
-            );
-          })}
+        <div className="max-w-5xl mx-auto px-4 py-2 space-y-1">
+          {/* Personal row */}
+          <div className="flex gap-1 flex-wrap">
+            <span className="text-xs text-amber-400 font-medium self-center px-1 mr-1">Personal</span>
+            {TABS.filter(t=>t.group==='personal').map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-1.5 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 text-sm ${activeTab===tab.id?'bg-yellow-200 text-amber-900 font-medium shadow-sm':'bg-white bg-opacity-40 text-amber-700 hover:bg-opacity-60'}`}>
+                  <Icon size={14}/>{tab.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* AI Intelligence row */}
+          <div className="flex gap-1 flex-wrap">
+            <span className="text-xs text-amber-400 font-medium self-center px-1 mr-1">AI Intel</span>
+            {TABS.filter(t=>t.group==='intel').map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-1.5 rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 text-sm ${activeTab===tab.id?'bg-amber-300 text-amber-900 font-medium shadow-sm':'bg-amber-50 bg-opacity-80 text-amber-700 hover:bg-opacity-100 border border-amber-200'}`}>
+                  <Icon size={14}/>{tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </nav>
 
       {/* Main content */}
       <main className="relative z-10 max-w-4xl mx-auto px-4 py-10">
-        {activeTab === 'overview'     && <OverviewTab />}
-        {activeTab === 'appointments' && db && <AppointmentsTab db={db} />}
-        {activeTab === 'doctors'      && db && <DoctorsTab      db={db} />}
-        {activeTab === 'exercises'    && db && <ExercisesTab    db={db} />}
-        {activeTab === 'research'     && db && <ResearchTab     db={db} />}
-        {activeTab === 'trials'       && db && <TrialsTab       db={db} />}
-        {activeTab === 'moonshots'    && db && <MoonshootsTab   db={db} />}
-        {activeTab === 'notes'        && db && <NotesTab        db={db} />}
+        {activeTab === 'overview'      && <OverviewTab />}
+        {activeTab === 'mymirla'       && <MirlaNotesSection />}
+        {activeTab === 'appointments'  && db && <AppointmentsTab db={db} />}
+        {activeTab === 'doctors'       && db && <DoctorsTab      db={db} />}
+        {activeTab === 'exercises'     && db && <ExercisesTab    db={db} />}
+        {activeTab === 'notes'         && db && <NotesTab        db={db} />}
+        {activeTab === 'labs'          && <LabDashboard />}
+        {activeTab === 'upload'        && <MirlaDataUpload />}
+        {activeTab === 'drugs'         && <DrugRecommendations />}
+        {activeTab === 'evidence'      && <EvidenceSynthesis />}
+        {activeTab === 'trialsmatch'   && <TrialMatcher />}
+        {activeTab === 'interactions'  && <InteractionChecker />}
+        {activeTab === 'monitoring'    && <MonitoringSchedule />}
+        {activeTab === 'research'      && db && <ResearchTab     db={db} />}
+        {activeTab === 'trials'        && db && <TrialsTab       db={db} />}
+        {activeTab === 'moonshots'     && db && <MoonshootsTab   db={db} />}
       </main>
 
       {/* Footer */}
