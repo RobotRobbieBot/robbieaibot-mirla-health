@@ -10,8 +10,8 @@ db.pragma('foreign_keys = ON');
 db.exec(`
   CREATE TABLE IF NOT EXISTS mirla_profile (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    condition TEXT DEFAULT 'Systemic Sclerosis',
-    current_medications TEXT DEFAULT 'MMF, Nifedipine, Sildenafil, Omeprazole',
+    condition TEXT,
+    current_medications TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE IF NOT EXISTS lab_results (
@@ -153,9 +153,13 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  INSERT OR IGNORE INTO mirla_profile (id, condition, current_medications)
-  VALUES (1, 'Systemic Sclerosis', 'MMF, Nifedipine, Sildenafil, Omeprazole');
 `);
+
+// Seed profile from env if not already present
+const defaultCondition = process.env.PATIENT_CONDITION || 'Not specified';
+const defaultMeds      = process.env.PATIENT_MEDICATIONS|| 'Not specified';
+db.prepare(`INSERT OR IGNORE INTO mirla_profile (id, condition, current_medications) VALUES (1, ?, ?)`)
+  .run(defaultCondition, defaultMeds);
 
 console.log('✅ Database ready:', DB_PATH);
 module.exports = db;

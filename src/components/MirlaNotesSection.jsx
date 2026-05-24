@@ -63,7 +63,7 @@ const MirlaNotesSection = () => {
         <div className="flex items-center gap-3 mb-6">
           <Heart className="text-red-400" size={24}/>
           <div>
-            <h2 className="text-2xl font-light text-amber-900">For You, Mirla</h2>
+            <h2 className="text-2xl font-light text-amber-900">For You{process.env.REACT_APP_PATIENT_NAME ? ', ' + process.env.REACT_APP_PATIENT_NAME : ''}</h2>
             <p className="text-amber-600 text-sm font-light">{fmtDate(today())}</p>
           </div>
         </div>
@@ -71,7 +71,7 @@ const MirlaNotesSection = () => {
         <textarea
           value={text}
           onChange={e=>setText(e.target.value)}
-          placeholder="How are you feeling today, Mirla? What's on your heart? This is your safe space..."
+          placeholder={`How are you feeling today${process.env.REACT_APP_PATIENT_NAME ? ', ' + process.env.REACT_APP_PATIENT_NAME : ''}? What's on your heart? This is your safe space...`}
           className="w-full px-4 py-4 rounded-2xl bg-white bg-opacity-60 border border-amber-200 text-amber-900 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none text-base leading-relaxed font-light"
           rows={5}
         />

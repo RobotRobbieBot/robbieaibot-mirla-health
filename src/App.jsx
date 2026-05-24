@@ -40,7 +40,7 @@ const getDailyQuote = () => {
 const TABS = [
   // ── Personal ──────────────────────────────────────────────
   { id: 'overview',      label: 'Overview',       icon: Heart,          group: 'personal' },
-  { id: 'mymirla',       label: 'For You Mirla',  icon: Heart,          group: 'personal' },
+  { id: 'mymirla',       label: `For You${process.env.REACT_APP_PATIENT_NAME ? ', ' + process.env.REACT_APP_PATIENT_NAME : ''}`,  icon: Heart, group: 'personal' },
   { id: 'appointments',  label: 'Appointments',   icon: Calendar,       group: 'personal' },
   { id: 'doctors',       label: 'Doctors',        icon: Users,          group: 'personal' },
   { id: 'exercises',     label: 'Exercises',      icon: Lightbulb,      group: 'personal' },
@@ -97,7 +97,7 @@ const MirlaHealthHub = () => {
         background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.6) 0%, rgba(251, 191, 36, 0.4) 100%)'
       }}>
         <div className="max-w-4xl mx-auto px-4 py-10">
-          <h1 className="text-5xl font-light text-amber-900 mb-3 tracking-wide">Mirla's Health Journey</h1>
+          <h1 className="text-5xl font-light text-amber-900 mb-3 tracking-wide">{process.env.REACT_APP_PATIENT_NAME || 'Your'}'s Health Journey</h1>
           <p className="text-amber-700 text-lg italic font-light">{dailyQuote.quote}</p>
           <p className="text-amber-600 text-sm mt-1">— {dailyQuote.reference}</p>
         </div>

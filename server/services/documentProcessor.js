@@ -4,15 +4,15 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const MIRLA_CONDITIONS = [
-  'Systemic Sclerosis (SSc)', 'Fibromyalgia', 'Hashimoto\'s Thyroiditis',
-  'Raynaud\'s Phenomenon', 'Chronic Migraines', 'SSc-ILD', 'Pulmonary Hypertension'
-];
+function getPatientConditions() {
+  const raw = process.env.PATIENT_CONDITIONS || process.env.PATIENT_CONDITION || 'autoimmune condition';
+  return raw.split(',').map(c => c.trim()).filter(Boolean);
+}
 
-const MIRLA_MEDS = [
-  'MMF', 'Mycophenolate', 'Nifedipine', 'Omeprazole',
-  'Levothyroxine', 'Topiramate', 'Phentermine', 'Nintedanib'
-];
+function getPatientMeds() {
+  const raw = process.env.PATIENT_MEDICATIONS || '';
+  return raw.split(',').map(m => m.trim().split(/\s+/)[0]).filter(Boolean); // first word (drug name only)
+}
 
 function getClient() {
   return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
@@ -51,11 +51,17 @@ async function processDocument(filePath, originalName) {
   const client = getClient();
   const { text, useVision } = await extractText(filePath, originalName);
 
-  const systemPrompt = `You are a warm, caring medical document analyst working for Dr. Robbie — Mirla's devoted care coordinator. You speak with Irish warmth and genuine heart.
+  const patientName  = process.env.PATIENT_FULL_NAME || process.env.PATIENT_NAME || 'Patient';
+  const dob          = process.env.PATIENT_DOB        || 'on file';
+  const coordinator  = process.env.COORDINATOR_NAME   || 'Care Coordinator';
+  const conditions   = getPatientConditions();
+  const meds         = getPatientMeds();
 
-Patient: Mirla C Campion | DOB: 8/15/1981
-Known conditions: ${MIRLA_CONDITIONS.join(', ')}
-Current medications: ${MIRLA_MEDS.join(', ')}
+  const systemPrompt = `You are a warm, caring medical document analyst working for ${coordinator} — ${patientName}'s devoted care coordinator. You speak with Irish warmth and genuine heart.
+
+Patient: ${patientName} | DOB: ${dob}
+Known conditions: ${conditions.join(', ')}
+Current medications: ${meds.join(', ')}
 
 Analyse this medical document and return ONLY a raw JSON object (no markdown fences):
 {
@@ -63,7 +69,7 @@ Analyse this medical document and return ONLY a raw JSON object (no markdown fen
   "doc_date": "YYYY-MM-DD or null",
   "provider": "doctor or facility name or null",
   "specialty": "e.g. Rheumatology, Radiology, Primary Care or null",
-  "summary": "2-3 plain English sentences — what this document says and why it matters for Mirla",
+  "summary": "2-3 plain English sentences — what this document says and why it matters for the patient",
   "key_facts": {
     "diagnoses": ["any new or confirmed diagnoses"],
     "procedures": ["any procedures performed"],
@@ -154,12 +160,14 @@ async function findConnections(db) {
   }).join('\n\n---\n\n');
 
   try {
+    const conditions  = getPatientConditions();
+    const meds        = getPatientMeds();
     const response = await client.messages.create({
       model: 'claude-opus-4-7',
       max_tokens: 2000,
-      system: `You are analysing Mirla's complete medical history to find meaningful connections.
-Patient has: SSc, Fibromyalgia, Hashimoto's, Raynaud's, Migraines.
-Current meds: MMF, Nifedipine, Omeprazole, Levothyroxine, Topiramate, Phentermine, Nintedanib.
+      system: `You are analysing the patient's complete medical history to find meaningful connections.
+Patient conditions: ${conditions.join(', ')}.
+Current meds: ${meds.join(', ')}.
 
 Return ONLY a raw JSON array of connections found:
 [{
@@ -176,7 +184,7 @@ Focus on:
 - Patterns over time (worsening/improving)
 - Side effects visible in labs
 - Connections between her different conditions`,
-      messages: [{ role: 'user', content: `Find connections in Mirla's medical documents:\n\n${docSummaries}` }]
+      messages: [{ role: 'user', content: `Find connections in the patient's medical documents:\n\n${docSummaries}` }]
     });
 
     const raw = response.content[0].text.replace(/```json|```/g, '').trim();

@@ -1,10 +1,12 @@
 const axios = require('axios');
+require('dotenv').config();
 const BASE = 'https://clinicaltrials.gov/api/v2/studies';
 
 async function searchForMirla(drugName) {
+  const condition = process.env.PATIENT_CONDITION || 'Systemic Sclerosis';
   try {
     const params = {
-      'query.cond': 'Systemic Sclerosis',
+      'query.cond': condition,
       'query.intr': drugName,
       'pageSize': 15,
       'format': 'json'

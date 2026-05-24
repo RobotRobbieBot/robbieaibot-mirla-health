@@ -2,42 +2,35 @@ const Anthropic = require('@anthropic-ai/sdk');
 const https = require('https');
 require('dotenv').config();
 
-// ─── Patient Context ───────────────────────────────────────────────────────
-const MIRLA_PROFILE = `
-PATIENT: Mirla C Campion | DOB: 8/15/1981 | MRN: 01298680
-PCP: Dr. Francis J Braconaro
+// ─── Patient Context (built from .env) ────────────────────────────────────
+function buildPatientProfile() {
+  const name       = process.env.PATIENT_FULL_NAME  || process.env.PATIENT_NAME || 'Patient';
+  const dob        = process.env.PATIENT_DOB         || 'on file';
+  const mrn        = process.env.PATIENT_MRN         || 'on file';
+  const pcp        = process.env.PATIENT_PCP         || 'on file';
+  const conditions = process.env.PATIENT_CONDITIONS  || process.env.PATIENT_CONDITION || 'autoimmune condition';
+  const meds       = process.env.PATIENT_MEDICATIONS || '';
+  const faith      = process.env.PATIENT_FAITH        || '';
+
+  const condList  = conditions.split(',').map(c => `- ${c.trim()}`).join('\n');
+  const medList   = meds ? meds.split(',').map(m => `- ${m.trim()}`).join('\n') : '- see medication list';
+  const faithLine = faith
+    ? `\nPERSONAL CONTEXT: ${name} is ${faith} — their faith is a clinically recognised protective factor.`
+    : '';
+
+  return `
+PATIENT: ${name} | DOB: ${dob} | MRN: ${mrn}
+PCP: ${pcp}
 
 PRIMARY CONDITIONS:
-- Systemic Sclerosis (Diffuse SSc) — autoimmune fibrosis affecting skin, lungs, GI, kidneys, vasculature
-- Fibromyalgia — widespread musculoskeletal pain, fatigue, sleep/mood disturbance
-- Chronic Migraines — managed with Topiramate
-- Hashimoto's Thyroiditis — autoimmune hypothyroidism, managed with Levothyroxine
-- Raynaud's Phenomenon — vasospasm of fingers/toes, likely secondary to SSc
+${condList}
 
 CURRENT MEDICATIONS:
-- Mycophenolate Mofetil (MMF) 3g/day — immunosuppressant for SSc skin/lung
-- Nifedipine 30mg — calcium channel blocker for Raynaud's
-- Omeprazole 40mg — proton pump inhibitor (SSc often causes severe GERD)
-- Levothyroxine — thyroid hormone replacement (Hashimoto's)
-- Topiramate — migraine prevention
-- Phentermine — weight management
-- Nintedanib — antifibrotic for SSc-ILD (interstitial lung disease)
-
-KNOWN BASELINE (Jan 2025):
-- IL-6: 45 pg/mL (HIGH, ref <7) — active inflammation
-- TGF-β: 22.5 ng/mL (ELEVATED) — active fibrosis
-- mRSS: 28 (severe skin thickening)
-- FVC: 68% (reduced — lung involvement)
-
-COMORBIDITY OVERLAPS TO CONSIDER:
-- SSc + Hashimoto's: both autoimmune, shared HLA haplotypes, thyroid function affects fatigue, cold intolerance
-- SSc + Fibromyalgia: central sensitisation on top of nociceptive pain, treatment must address both
-- SSc + Raynaud's: digital ulcers risk, nailfold capillaroscopy changes, vasculopathy
-- SSc + Migraines: vascular component, Raynaud's-migraine shared vasospasm mechanism
-- Nintedanib: known GI side effects — nausea, diarrhoea, elevated liver enzymes, LIPASE elevation
-- MMF: can cause GI upset, cytopenias, increased infection risk
-- Phentermine + Topiramate: cardiovascular monitoring needed; also Phentermine can affect BP and heart rate
+${medList}${faithLine}
 `;
+}
+
+const PATIENT_PROFILE = buildPatientProfile();
 
 // ─── Fetch helper ──────────────────────────────────────────────────────────
 function fetchJSON(url) {
@@ -130,69 +123,83 @@ async function runFullAnalysis(labsArray) {
     `${l.date}: WBC=${l.wbc} Hgb=${l.hemoglobin} Plt=${l.platelets} Creat=${l.creatinine} K=${l.potassium} Na=${l.sodium} Glucose=${l.glucose} ALT=${l.alt} AST=${l.ast} Lipase=${l.lipase} Amylase=${l.amylase} Mg=${l.magnesium} eGFR=${l.egfr} Albumin=${l.albumin} FVC=${l.fvc} [${l.notes || ''}]`
   ).join('\n');
 
+  const primaryCondition = process.env.PATIENT_CONDITION || 'systemic sclerosis';
+  const conditionSlug    = primaryCondition.toLowerCase().replace(/[()]/g, '').trim();
+
   console.log('🔬 Searching PubMed...');
-  const [sscResearch, nintedanibResearch, comorbidResearch, integrativeResearch, ldnResearch] = await Promise.all([
-    searchPubMed('systemic sclerosis treatment 2024 2025', 3),
-    searchPubMed('nintedanib systemic sclerosis pancreatitis lipase', 2),
-    searchPubMed('systemic sclerosis fibromyalgia hashimoto comorbidity treatment', 2),
-    searchPubMed('psilocybin chronic pain neuroinflammation acupuncture Raynaud curcumin scleroderma', 3),
+  const [condResearch, drugResearch, comorbidResearch, integrativeResearch, ldnResearch] = await Promise.all([
+    searchPubMed(`${conditionSlug} treatment 2024 2025`, 3),
+    searchPubMed(`${conditionSlug} autoimmune pancreatitis liver enzymes`, 2),
+    searchPubMed(`${conditionSlug} fibromyalgia autoimmune comorbidity treatment`, 2),
+    searchPubMed(`psilocybin chronic pain neuroinflammation acupuncture ${conditionSlug}`, 3),
     searchPubMed('low dose naltrexone fibromyalgia rheumatic disease', 2),
   ]);
 
   console.log('🏥 Searching clinical trials...');
-  const [sscTrials, ildTrials] = await Promise.all([
-    searchTrials('systemic sclerosis', 4),
-    searchTrials('scleroderma interstitial lung disease', 3),
+  const [condTrials, ildTrials] = await Promise.all([
+    searchTrials(primaryCondition, 4),
+    searchTrials(`${conditionSlug} interstitial lung disease`, 3),
   ]);
 
   const researchContext = [
-    sscResearch.join('\n---\n'),
-    nintedanibResearch.join('\n---\n'),
+    condResearch.join('\n---\n'),
+    drugResearch.join('\n---\n'),
     comorbidResearch.join('\n---\n'),
     integrativeResearch.join('\n---\n'),
     ldnResearch.join('\n---\n'),
   ].filter(Boolean).join('\n\n=====\n\n').substring(0, 7000);
 
   // Known integrative/holistic research (PubMed verified)
+  const patientName = process.env.PATIENT_NAME || 'the patient';
+  const faith       = process.env.PATIENT_FAITH || '';
+  const faithEvidence = faith
+    ? `- FAITH/RELIGIOUS COPING: Positive religious coping significantly associated with better outcomes, treatment adherence, quality of life, and positive affect in chronic pain/illness (PMID 10789001; PMID 23484213, DOI 10.1007/s10943-012-9578-9)\n- SPIRITUALITY NOTE: ${patientName} is ${faith} — their faith is a clinically recognised protective factor. Spiritual care, chaplaincy, and faith community support are evidence-based complementary supports.`
+    : '';
+
   const integrativeEvidence = `
 VERIFIED INTEGRATIVE MEDICINE RESEARCH (PubMed):
 - PSYCHEDELICS: Psilocybin/ketamine show anti-neuroinflammatory + immunomodulatory effects for chronic neuropathic pain; address central sensitisation in fibromyalgia (PMID 34922987, DOI 10.1016/j.neubiorev.2021.12.005)
 - ACUPUNCTURE/RAYNAUD'S: Meta-analysis of 6 RCTs (n=272) — acupuncture increased remission rate (RR 1.21), reduced daily Raynaud's attacks, improved cold provocation tests (PMID 35608095, DOI 10.1177/09645284221076504)
 - CURCUMIN/SSc: Curcumin selectively induces apoptosis in scleroderma lung fibroblasts (not normal cells) via PKCε pathway — may have therapeutic value for SSc lung fibrosis (PMID 14742295, DOI 10.1165/rcmb.2003-0354OC). Also activates Nrf2 antioxidant pathway, protecting kidneys (PMID 22919438)
 - LOW DOSE NALTREXONE (LDN): Shown to reduce fibromyalgia pain/well-being, relieved pruritus specifically in scleroderma patients, modulates neuroinflammation — safe, cheap, no serious side effects (PMID 37223594, DOI 10.31138/mjr.34.1.1; PMID 32845365, DOI 10.1007/s11916-020-00898-0)
-- FAITH/RELIGIOUS COPING: Positive religious coping significantly associated with better outcomes, treatment adherence, quality of life, and positive affect in chronic pain/illness (PMID 10789001; PMID 23484213, DOI 10.1007/s10943-012-9578-9)
-- SPIRITUALITY NOTE: Mirla is a devout Catholic — her faith is a clinically recognised protective factor. Spiritual care, chaplaincy, and faith community support are evidence-based complementary supports.
+${faithEvidence}
 `;
 
-  const trialsText = [...sscTrials, ...ildTrials]
+  const trialsText = [...condTrials, ...ildTrials]
     .filter(t => t.nctId)
     .map(t => `• ${t.title} (${t.nctId}) — Phase: ${t.phase || 'N/A'} | ${t.url}`)
     .join('\n');
+
+  const coordinator = process.env.COORDINATOR_NAME || 'Care Coordinator';
+  const conditions  = process.env.PATIENT_CONDITIONS || process.env.PATIENT_CONDITION || 'autoimmune condition';
+  const faithSection = faith
+    ? `7. 🙏 Faith & spirituality — ${patientName} is ${faith}. Their faith is clinically recognised as a protective factor. Speak to this with warmth and respect. Mention how prayer, community, meaning-making, and spiritual support are genuine parts of healing — not separate from medicine`
+    : `7. 🌱 Mind-body & wellbeing — mental health, community, meaning-making, and wellbeing practices that support healing`;
 
   console.log('🤖 Running Claude analysis...');
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
     max_tokens: 8000,
-    system: `You are a warm, loving medical intelligence assistant — like a trusted Irish family friend who happens to know medicine inside out. You speak with warmth, heart, and the gentle directness of someone who truly cares. You're writing for Dr. Robbie (Mirla's devoted care coordinator and doctor) and for Mirla herself.
+    system: `You are a warm, loving medical intelligence assistant — like a trusted Irish family friend who happens to know medicine inside out. You speak with warmth, heart, and the gentle directness of someone who truly cares. You're writing for ${coordinator} (${patientName}'s devoted care coordinator) and for ${patientName} themselves.
 
-Use occasional Irish warmth in your language — things like "God bless her", "the poor dote", "she's doing mighty", "sure look", "grand altogether", "bless her heart", "fair play to her" — but keep it natural and never overdone. Always feel like a warm hug alongside honest medical facts.
+Use occasional Irish warmth in your language — things like "God bless them", "the poor dote", "they're doing mighty", "sure look", "grand altogether", "fair play to them" — but keep it natural and never overdone. Always feel like a warm hug alongside honest medical facts.
 
 IMPORTANT RULES:
-- Address Robbie by name — he works tirelessly for Mirla and deserves to feel seen
-- Always end with: "⚕️ Robbie, please go over all of this with Mirla's full medical team before making any changes — you're doing a wonderful job looking after her. 💛"
+- Address ${coordinator} by name — they work tirelessly and deserve to feel seen
+- Always end with: "⚕️ ${coordinator}, please go over all of this with ${patientName}'s full medical team before making any changes — you're doing a wonderful job looking after them. 💛"
 - Flag anything urgent at the top with 🚨
 - Never suggest specific drug doses
-- When noting treatment options, say "options worth discussing with her doctors include..."
-- Be warm, honest, and supportive — Mirla reads this too and needs hope alongside truth
+- When noting treatment options, say "options worth discussing with their doctors include..."
+- Be warm, honest, and supportive — ${patientName} reads this too and needs hope alongside truth
 - Use sections with clear headings
-- Cross-reference all her conditions when relevant
-- Be genuinely open to ALL treatment ideas — conventional, integrative, plant medicine, Eastern medicine, spiritual, psychedelic-assisted, energy work, nutrition, mind-body. Do not dismiss anything. Present all options with equal respect and let Mirla and Robbie decide. The only filter is safety — flag anything genuinely risky, but never dismiss something just because it is outside mainstream medicine.`,
+- Cross-reference all their conditions when relevant
+- Be genuinely open to ALL treatment ideas — conventional, integrative, plant medicine, Eastern medicine, spiritual, psychedelic-assisted, energy work, nutrition, mind-body. Do not dismiss anything. Present all options with equal respect. The only filter is safety — flag anything genuinely risky, but never dismiss something just because it is outside mainstream medicine.`,
 
     messages: [{
       role: 'user',
-      content: `Please analyse Mirla's latest lab results and provide a full report.
+      content: `Please analyse ${patientName}'s latest lab results and provide a full report.
 
-${MIRLA_PROFILE}
+${PATIENT_PROFILE}
 
 CRITICAL FLAGS DETECTED:
 ${criticalFlags.length > 0 ? criticalFlags.map(f => `[${f.level}] ${f.message}`).join('\n') : 'None'}
@@ -210,32 +217,32 @@ ${trialsText || 'None found'}
 
 Please provide:
 1. 🚨 Urgent flags (if any)
-2. 📊 What these lab results mean for Mirla
+2. 📊 What these lab results mean for ${patientName}
 3. 📈 Trends (better/worse/stable compared to before)
-4. 💊 Conventional treatment options worth discussing with her doctors (full options, experimental included)
-5. 🌿 Integrative & holistic options — include: acupuncture (especially for Raynaud's — evidence-backed), curcumin/turmeric (SSc lung fibrosis data), Low Dose Naltrexone (fibromyalgia + SSc itch — real evidence), omega-3s, N-acetylcysteine, magnesium, plant/herbal approaches with evidence
-6. 🍄 Psychedelics & emerging therapies — psilocybin/ketamine for central sensitisation and fibromyalgia pain (real neuroscience — explain it warmly and honestly), mindset/integration work
-7. 🙏 Faith & spirituality — Mirla is a devout Catholic. Her faith is clinically recognised as a protective factor. Speak to this with warmth and respect. Mention how prayer, community, meaning-making, and spiritual support are genuine parts of healing — not separate from medicine
+4. 💊 Conventional treatment options worth discussing with their doctors (full options, experimental included)
+5. 🌿 Integrative & holistic options — include: acupuncture, curcumin/turmeric, Low Dose Naltrexone (real evidence for autoimmune/fibromyalgia), omega-3s, N-acetylcysteine, magnesium, plant/herbal approaches with evidence
+6. 🍄 Psychedelics & emerging therapies — psilocybin/ketamine for central sensitisation and chronic pain (real neuroscience — explain it warmly and honestly)
+${faithSection}
 8. 🔬 What the latest research says
-9. 🧪 Clinical trials she may qualify for
-10. 🔗 How her conditions interact (SSc + fibromyalgia + Hashimoto's + migraines + Raynaud's)
-11. 🔭 RECOMMENDED TESTS — this section is critical. Based on AI research and her current results, list every test she should be asking for. For EACH test write:
+9. 🧪 Clinical trials they may qualify for
+10. 🔗 How their conditions interact (${conditions})
+11. 🔭 RECOMMENDED TESTS — this section is critical. Based on AI research and their current results, list every test they should be asking for. For EACH test write:
    - The test name and what it measures (plain English, no jargon)
-   - WHY the research says this test matters specifically for her conditions
+   - WHY the research says this test matters specifically for their conditions
    - What a good result looks like vs a concerning result
-   - The exact words she can say to her doctor to request it
-   Format each test as: **Test Name** | *What it is* | *Why it matters for Mirla* | *What to ask*
-   Include: missing labs (CBC, FVC), disease activity markers (IL-6, TGF-β, mRSS), thyroid panel (TSH, free T4, TPO antibodies), HbA1c, vitamin D, B12, ferritin, magnesium, NT-proBNP (pulmonary hypertension screen), nailfold capillaroscopy, echocardiogram, HRCT chest, and any others the research suggests
-12. ❓ Questions for her next appointment`
+   - The exact words they can say to their doctor to request it
+   Format each test as: **Test Name** | *What it is* | *Why it matters for ${patientName}* | *What to ask*
+   Include: missing labs (CBC, FVC), disease activity markers (IL-6, TGF-β, mRSS), thyroid panel, HbA1c, vitamin D, B12, ferritin, magnesium, NT-proBNP (pulmonary hypertension screen), echocardiogram, HRCT chest, and any others the research suggests
+12. ❓ Questions for their next appointment`
     }]
   });
 
   return {
     report: response.content[0].text,
     criticalFlags,
-    pubmedRefs: [...sscResearch, ...nintedanibResearch, ...comorbidResearch].join('\n\n---\n\n'),
+    pubmedRefs: [...condResearch, ...drugResearch, ...comorbidResearch].join('\n\n---\n\n'),
     trialsRefs: trialsText,
-    context: { labHistory, patientProfile: MIRLA_PROFILE }
+    context: { labHistory, patientProfile: PATIENT_PROFILE }
   };
 }
 
@@ -248,16 +255,19 @@ async function chatWithAgent(reportText, history, userMessage) {
     { role: 'user', content: userMessage }
   ];
 
+  const chatCoordinator = process.env.COORDINATOR_NAME || 'Care Coordinator';
+  const chatPatient     = process.env.PATIENT_NAME     || 'the patient';
+
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
     max_tokens: 8000,
-    system: `You are a warm, loving medical intelligence assistant — like a trusted Irish family friend who knows medicine. You speak with heart and gentle directness. You're chatting with Dr. Robbie, Mirla's devoted care coordinator. Use occasional Irish warmth naturally — "sure look", "God bless her", "the poor dote", "fair play", "she's doing mighty" — but keep it grounded and honest. Never suggest specific drug doses. Always recommend discussing changes with her doctors. Be genuinely open to ALL ideas — conventional, plant medicine, Eastern, spiritual, psychedelic-assisted, energy work, nutrition, faith-based. Never dismiss anything. Present everything with respect. Always complete your full response — never cut off mid-sentence or mid-thought.
+    system: `You are a warm, loving medical intelligence assistant — like a trusted Irish family friend who knows medicine. You speak with heart and gentle directness. You're chatting with ${chatCoordinator}, ${chatPatient}'s devoted care coordinator. Use occasional Irish warmth naturally — "sure look", "God bless them", "the poor dote", "fair play", "they're doing mighty" — but keep it grounded and honest. Never suggest specific drug doses. Always recommend discussing changes with their doctors. Be genuinely open to ALL ideas — conventional, plant medicine, Eastern, spiritual, psychedelic-assisted, energy work, nutrition, faith-based. Never dismiss anything. Present everything with respect. Always complete your full response — never cut off mid-sentence or mid-thought.
 
 THE REPORT YOU PRODUCED:
 ${reportText.substring(0, 8000)}
 
 PATIENT CONTEXT:
-${MIRLA_PROFILE}`,
+${PATIENT_PROFILE}`,
     messages
   });
 
