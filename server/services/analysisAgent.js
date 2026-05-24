@@ -1,4 +1,4 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const { chat, chatWithHistory } = require('./llmService');
 const https = require('https');
 require('dotenv').config();
 
@@ -112,7 +112,6 @@ function detectCriticalFlags(labs) {
 
 // ─── Main analysis function ────────────────────────────────────────────────
 async function runFullAnalysis(labsArray) {
-  const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
   // Most recent labs
   const latest = labsArray[0] || {};
@@ -176,11 +175,8 @@ ${faithEvidence}
     ? `7. 🙏 Faith & spirituality — ${patientName} is ${faith}. Their faith is clinically recognised as a protective factor. Speak to this with warmth and respect. Mention how prayer, community, meaning-making, and spiritual support are genuine parts of healing — not separate from medicine`
     : `7. 🌱 Mind-body & wellbeing — mental health, community, meaning-making, and wellbeing practices that support healing`;
 
-  console.log('🤖 Running Claude analysis...');
-  const response = await client.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 8000,
-    system: `You are a warm, loving medical intelligence assistant — like a trusted Irish family friend who happens to know medicine inside out. You speak with warmth, heart, and the gentle directness of someone who truly cares. You're writing for ${coordinator} (${patientName}'s devoted care coordinator) and for ${patientName} themselves.
+  console.log('🤖 Running LLM analysis...');
+  const systemPrompt = `You are a warm, loving medical intelligence assistant — like a trusted Irish family friend who happens to know medicine inside out. You speak with warmth, heart, and the gentle directness of someone who truly cares. You're writing for ${coordinator} (${patientName}'s devoted care coordinator) and for ${patientName} themselves.
 
 Use occasional Irish warmth in your language — things like "God bless them", "the poor dote", "they're doing mighty", "sure look", "grand altogether", "fair play to them" — but keep it natural and never overdone. Always feel like a warm hug alongside honest medical facts.
 
@@ -193,11 +189,9 @@ IMPORTANT RULES:
 - Be warm, honest, and supportive — ${patientName} reads this too and needs hope alongside truth
 - Use sections with clear headings
 - Cross-reference all their conditions when relevant
-- Be genuinely open to ALL treatment ideas — conventional, integrative, plant medicine, Eastern medicine, spiritual, psychedelic-assisted, energy work, nutrition, mind-body. Do not dismiss anything. Present all options with equal respect. The only filter is safety — flag anything genuinely risky, but never dismiss something just because it is outside mainstream medicine.`,
+- Be genuinely open to ALL treatment ideas — conventional, integrative, plant medicine, Eastern medicine, spiritual, psychedelic-assisted, energy work, nutrition, mind-body. Do not dismiss anything. Present all options with equal respect. The only filter is safety — flag anything genuinely risky, but never dismiss something just because it is outside mainstream medicine.`;
 
-    messages: [{
-      role: 'user',
-      content: `Please analyse ${patientName}'s latest lab results and provide a full report.
+  const userMessage = `Please analyse ${patientName}'s latest lab results and provide a full report.
 
 ${PATIENT_PROFILE}
 
@@ -233,12 +227,12 @@ ${faithSection}
    - The exact words they can say to their doctor to request it
    Format each test as: **Test Name** | *What it is* | *Why it matters for ${patientName}* | *What to ask*
    Include: missing labs (CBC, FVC), disease activity markers (IL-6, TGF-β, mRSS), thyroid panel, HbA1c, vitamin D, B12, ferritin, magnesium, NT-proBNP (pulmonary hypertension screen), echocardiogram, HRCT chest, and any others the research suggests
-12. ❓ Questions for their next appointment`
-    }]
-  });
+12. ❓ Questions for their next appointment`;
+
+  const reportText = await chat(systemPrompt, userMessage, { maxTokens: 8000 });
 
   return {
-    report: response.content[0].text,
+    report: reportText,
     criticalFlags,
     pubmedRefs: [...condResearch, ...drugResearch, ...comorbidResearch].join('\n\n---\n\n'),
     trialsRefs: trialsText,
@@ -248,30 +242,25 @@ ${faithSection}
 
 // ─── Chat follow-up ────────────────────────────────────────────────────────
 async function chatWithAgent(reportText, history, userMessage) {
-  const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+  const chatCoordinator = process.env.COORDINATOR_NAME || 'Care Coordinator';
+  const chatPatient     = process.env.PATIENT_NAME     || 'the patient';
 
   const messages = [
     ...history.map(m => ({ role: m.role, content: m.content })),
     { role: 'user', content: userMessage }
   ];
 
-  const chatCoordinator = process.env.COORDINATOR_NAME || 'Care Coordinator';
-  const chatPatient     = process.env.PATIENT_NAME     || 'the patient';
-
-  const response = await client.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 8000,
-    system: `You are a warm, loving medical intelligence assistant — like a trusted Irish family friend who knows medicine. You speak with heart and gentle directness. You're chatting with ${chatCoordinator}, ${chatPatient}'s devoted care coordinator. Use occasional Irish warmth naturally — "sure look", "God bless them", "the poor dote", "fair play", "they're doing mighty" — but keep it grounded and honest. Never suggest specific drug doses. Always recommend discussing changes with their doctors. Be genuinely open to ALL ideas — conventional, plant medicine, Eastern, spiritual, psychedelic-assisted, energy work, nutrition, faith-based. Never dismiss anything. Present everything with respect. Always complete your full response — never cut off mid-sentence or mid-thought.
+  return await chatWithHistory(
+    `You are a warm, loving medical intelligence assistant — like a trusted Irish family friend who knows medicine. You speak with heart and gentle directness. You're chatting with ${chatCoordinator}, ${chatPatient}'s devoted care coordinator. Use occasional Irish warmth naturally — "sure look", "God bless them", "the poor dote", "fair play", "they're doing mighty" — but keep it grounded and honest. Never suggest specific drug doses. Always recommend discussing changes with their doctors. Be genuinely open to ALL ideas — conventional, plant medicine, Eastern, spiritual, psychedelic-assisted, energy work, nutrition, faith-based. Never dismiss anything. Present everything with respect. Always complete your full response — never cut off mid-sentence or mid-thought.
 
 THE REPORT YOU PRODUCED:
 ${reportText.substring(0, 8000)}
 
 PATIENT CONTEXT:
 ${PATIENT_PROFILE}`,
-    messages
-  });
-
-  return response.content[0].text;
+    messages,
+    { maxTokens: 8000 }
+  );
 }
 
 module.exports = { runFullAnalysis, chatWithAgent, detectCriticalFlags };

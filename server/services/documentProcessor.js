@@ -1,4 +1,4 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const { chat } = require('./llmService');
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -14,9 +14,6 @@ function getPatientMeds() {
   return raw.split(',').map(m => m.trim().split(/\s+/)[0]).filter(Boolean); // first word (drug name only)
 }
 
-function getClient() {
-  return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
-}
 
 // ── Extract text from file ─────────────────────────────────────────────────
 async function extractText(filePath, originalName) {
@@ -48,7 +45,6 @@ async function extractText(filePath, originalName) {
 
 // ── Process one document ───────────────────────────────────────────────────
 async function processDocument(filePath, originalName) {
-  const client = getClient();
   const { text, useVision } = await extractText(filePath, originalName);
 
   const patientName  = process.env.PATIENT_FULL_NAME || process.env.PATIENT_NAME || 'Patient';
@@ -126,14 +122,11 @@ Analyse this medical document and return ONLY a raw JSON object (no markdown fen
   }
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-opus-4-7',
-      max_tokens: 1500,
-      system: systemPrompt,
-      messages: [{ role: 'user', content }]
-    });
-
-    const raw = response.content[0].text.replace(/```json|```/g, '').trim();
+    // Vision (images/scanned PDFs) always use Claude; text calls use local LLM if configured
+    const raw = (await chat(systemPrompt, content, {
+      maxTokens: 1500,
+      forceCloud: useVision   // local models don't do vision
+    })).replace(/```json|```/g, '').trim();
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return null;
     const result = JSON.parse(match[0]);
@@ -147,7 +140,6 @@ Analyse this medical document and return ONLY a raw JSON object (no markdown fen
 
 // ── Find connections across documents ─────────────────────────────────────
 async function findConnections(db) {
-  const client = getClient();
   const docs = db.prepare(
     `SELECT id, doc_type, doc_date, provider, summary, key_facts FROM medical_documents ORDER BY doc_date ASC LIMIT 50`
   ).all();
@@ -160,12 +152,10 @@ async function findConnections(db) {
   }).join('\n\n---\n\n');
 
   try {
-    const conditions  = getPatientConditions();
-    const meds        = getPatientMeds();
-    const response = await client.messages.create({
-      model: 'claude-opus-4-7',
-      max_tokens: 2000,
-      system: `You are analysing the patient's complete medical history to find meaningful connections.
+    const conditions = getPatientConditions();
+    const meds       = getPatientMeds();
+    const raw = (await chat(
+      `You are analysing the patient's complete medical history to find meaningful connections.
 Patient conditions: ${conditions.join(', ')}.
 Current meds: ${meds.join(', ')}.
 
@@ -184,10 +174,9 @@ Focus on:
 - Patterns over time (worsening/improving)
 - Side effects visible in labs
 - Connections between her different conditions`,
-      messages: [{ role: 'user', content: `Find connections in the patient's medical documents:\n\n${docSummaries}` }]
-    });
-
-    const raw = response.content[0].text.replace(/```json|```/g, '').trim();
+      `Find connections in the patient's medical documents:\n\n${docSummaries}`,
+      { maxTokens: 2000 }
+    )).replace(/```json|```/g, '').trim();
     const match = raw.match(/\[[\s\S]*\]/);
     return match ? JSON.parse(match[0]) : [];
   } catch (e) {
@@ -198,7 +187,6 @@ Focus on:
 
 // ── Update patient profile ─────────────────────────────────────────────────
 async function updatePatientProfile(db) {
-  const client = getClient();
   const docs = db.prepare(
     `SELECT key_facts FROM medical_documents ORDER BY doc_date ASC`
   ).all();
@@ -208,10 +196,8 @@ async function updatePatientProfile(db) {
   if (allFacts.length === 0) return;
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-opus-4-7',
-      max_tokens: 2000,
-      system: `Build a comprehensive patient profile from medical documents. Return ONLY raw JSON:
+    const raw = (await chat(
+      `Build a comprehensive patient profile from medical documents. Return ONLY raw JSON:
 {
   "diagnoses": ["all confirmed diagnoses with approximate dates if known"],
   "procedures": ["all procedures and surgeries"],
@@ -219,10 +205,9 @@ async function updatePatientProfile(db) {
   "key_findings": ["most important clinical findings across all documents"],
   "condition_timeline": ["chronological list of major health events — plain English"]
 }`,
-      messages: [{ role: 'user', content: `Build profile from these facts:\n${JSON.stringify(allFacts).substring(0, 8000)}` }]
-    });
-
-    const raw = response.content[0].text.replace(/```json|```/g, '').trim();
+      `Build profile from these facts:\n${JSON.stringify(allFacts).substring(0, 8000)}`,
+      { maxTokens: 2000 }
+    )).replace(/```json|```/g, '').trim();
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return;
     const profile = JSON.parse(match[0]);
