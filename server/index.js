@@ -63,6 +63,6 @@ process.on('uncaughtException', (err) => {
 app.listen(PORT, () => {
   const pName = process.env.PATIENT_NAME || 'Patient';
   console.log(`\n🏥 ${pName} Health Intelligence API  →  http://localhost:${PORT}`);
-  console.log(`📊 React Dashboard                   →  http://localhost:3000`);
+  console.log(`📊 React Dashboard                   →  http://localhost:3002`);
   console.log(`🔌 Health check                      →  http://localhost:${PORT}/api/health\n`);
 });
