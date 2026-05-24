@@ -110,6 +110,42 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  -- Medical history / document intelligence
+  CREATE TABLE IF NOT EXISTS medical_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT NOT NULL,
+    original_name TEXT,
+    doc_type TEXT,
+    doc_date TEXT,
+    provider TEXT,
+    specialty TEXT,
+    summary TEXT,
+    key_facts TEXT DEFAULT '{}',
+    connections_to_watch TEXT DEFAULT '[]',
+    extracted_text TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS document_connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_a_id INTEGER,
+    doc_b_id INTEGER,
+    connection_type TEXT,
+    description TEXT,
+    confidence TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS patient_profile (
+    id INTEGER PRIMARY KEY,
+    diagnoses TEXT DEFAULT '[]',
+    procedures TEXT DEFAULT '[]',
+    allergies TEXT DEFAULT '[]',
+    key_findings TEXT DEFAULT '[]',
+    condition_timeline TEXT DEFAULT '[]',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  INSERT OR IGNORE INTO patient_profile (id) VALUES (1);
+
   -- Personal data tables (previously localStorage-only)
   CREATE TABLE IF NOT EXISTS appointments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
