@@ -7,3 +7,6 @@ build/
 *.db
 *.db-shm
 *.db-wal
+
+# Uploaded files (private medical documents)
+uploads/

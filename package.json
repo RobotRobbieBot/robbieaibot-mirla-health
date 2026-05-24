@@ -30,7 +30,7 @@
     "build": "react-scripts build",
     "server": "node server/index.js",
     "server:dev": "nodemon server/index.js",
-    "dev": "concurrently \"npm start\" \"npm run server:dev\""
+    "dev": "concurrently \"PORT=3000 npm start\" \"npm run server:dev\""
   },
   "browserslist": {
     "production": [

@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const MIRLA_CONTEXT = `Patient: Mirla, Systemic Sclerosis (Diffuse SSc)
 Baseline Labs: IL-6=45 pg/mL (HIGH, ref <7), TGF-β=22.5 ng/mL (ELEVATED), mRSS=28 (severe), FVC=68% (reduced)
-Current Medications: MMF 3g/day, Nifedipine 30mg, Sildenafil 20mg TID, Omeprazole 40mg
+Current Medications: MMF 3g/day, Nifedipine 30mg, Omeprazole 40mg
 Molecular Signature: IL-6 HIGH, TGF-β ELEVATED, A20 potentially low
 Key Pathways: IL-6/JAK-STAT, TGF-β/SMAD, NF-κB/A20`;
 
@@ -49,10 +49,14 @@ async function extractLabsFromText(text) {
     const response = await client.messages.create({
       model: 'claude-opus-4-7',
       max_tokens: 1000,
-      system: `Extract lab values from medical text. Return JSON: {date, il6, tgf_beta, a20, potassium, creatinine, wbc, mrss, fvc, hemoglobin, platelets, alt, ast, notes}. Use null for missing. Date format YYYY-MM-DD.`,
-      messages: [{ role: 'user', content: `Extract labs:\n${text.substring(0, 4000)}` }]
+      system: `You are extracting lab values from MyLVHN/MyChart patient portal reports. In these reports, the test name appears first, then "Normal range: X - Y unit", then the numeric value on the next line. Extract ALL values present.
+
+Return ONLY raw JSON (no markdown fences, no explanation):
+{"date":"YYYY-MM-DD (use collection date)","wbc":null,"hemoglobin":null,"platelets":null,"creatinine":null,"potassium":null,"sodium":null,"glucose":null,"bun":null,"egfr":null,"albumin":null,"calcium":null,"alt":null,"ast":null,"lipase":null,"amylase":null,"magnesium":null,"il6":null,"tgf_beta":null,"a20":null,"fvc":null,"mrss":null,"notes":"brief description of panel/tests"}`,
+      messages: [{ role: 'user', content: `Extract all lab values from this report:\n\n${text.substring(0, 8000)}` }]
     });
-    const match = response.content[0].text.match(/\{[\s\S]*\}/);
+    const raw = response.content[0].text.replace(/```json|```/g, '').trim();
+    const match = raw.match(/\{[\s\S]*\}/);
     return match ? JSON.parse(match[0]) : null;
   } catch { return null; }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Calendar, Users, Lightbulb, BookOpen, Microscope, Zap, Activity, Upload, FlaskConical, AlertTriangle, ClipboardList, Send } from 'lucide-react';
+import { Heart, Calendar, Users, Lightbulb, BookOpen, Microscope, Zap, Activity, Upload, FlaskConical, AlertTriangle, ClipboardList, Send, Brain, FileText, Pill } from 'lucide-react';
 
 import OverviewTab         from './components/OverviewTab';
 import AppointmentsTab     from './components/AppointmentsTab';
@@ -17,6 +17,9 @@ import MirlaDataUpload     from './components/MirlaDataUpload';
 import MirlaNotesSection   from './components/MirlaNotesSection';
 import MonitoringSchedule  from './components/MonitoringSchedule';
 import InteractionChecker  from './components/InteractionChecker';
+import MedicalAgent        from './components/MedicalAgent';
+import MedicalHistory      from './components/MedicalHistory';
+import SupplementsTab      from './components/SupplementsTab';
 
 const DAILY_QUOTES = [
   { quote: "Strength Through Faith", reference: "Philippians 4:13" },
@@ -41,8 +44,11 @@ const TABS = [
   { id: 'appointments',  label: 'Appointments',   icon: Calendar,       group: 'personal' },
   { id: 'doctors',       label: 'Doctors',        icon: Users,          group: 'personal' },
   { id: 'exercises',     label: 'Exercises',      icon: Lightbulb,      group: 'personal' },
+  { id: 'supplements',   label: 'Supplements',    icon: Pill,           group: 'personal' },
   { id: 'notes',         label: 'Notes',          icon: BookOpen,       group: 'personal' },
   // ── AI Intelligence ───────────────────────────────────────
+  { id: 'agent',         label: '🧠 AI Agent',     icon: Brain,          group: 'intel' },
+  { id: 'history',       label: '📁 Med History',  icon: FileText,       group: 'intel' },
   { id: 'labs',          label: 'Lab Trends',     icon: Activity,       group: 'intel' },
   { id: 'upload',        label: 'Upload Labs',    icon: Upload,         group: 'intel' },
   { id: 'drugs',         label: 'AI Drug Rank',   icon: Zap,            group: 'intel' },
@@ -62,7 +68,7 @@ const MirlaHealthHub = () => {
   const dailyQuote = getDailyQuote();
 
   useEffect(() => {
-    const request = indexedDB.open('MirlaHealthHub', 1);
+    const request = indexedDB.open('MirlaHealthHub', 2);
     request.onerror = () => console.error('DB error');
     request.onsuccess = (e) => setDb(e.target.result);
     request.onupgradeneeded = (e) => {
@@ -133,10 +139,13 @@ const MirlaHealthHub = () => {
       <main className="relative z-10 max-w-4xl mx-auto px-4 py-10">
         {activeTab === 'overview'      && <OverviewTab />}
         {activeTab === 'mymirla'       && <MirlaNotesSection />}
-        {activeTab === 'appointments'  && db && <AppointmentsTab db={db} />}
-        {activeTab === 'doctors'       && db && <DoctorsTab      db={db} />}
-        {activeTab === 'exercises'     && db && <ExercisesTab    db={db} />}
-        {activeTab === 'notes'         && db && <NotesTab        db={db} />}
+        {activeTab === 'appointments'  && <AppointmentsTab />}
+        {activeTab === 'doctors'       && <DoctorsTab />}
+        {activeTab === 'exercises'     && <ExercisesTab />}
+        {activeTab === 'supplements'   && <SupplementsTab />}
+        {activeTab === 'notes'         && <NotesTab />}
+        {activeTab === 'agent'         && <MedicalAgent />}
+        {activeTab === 'history'       && <MedicalHistory />}
         {activeTab === 'labs'          && <LabDashboard />}
         {activeTab === 'upload'        && <MirlaDataUpload />}
         {activeTab === 'drugs'         && <DrugRecommendations />}

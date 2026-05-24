@@ -25,18 +25,40 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-app.use('/api/labs',        require('./routes/labs'));
-app.use('/api/drugs',       require('./routes/drugs'));
-app.use('/api/research',    require('./routes/research'));
-app.use('/api/trials',      require('./routes/trials'));
-app.use('/api/analysis',    require('./routes/analysis'));
-app.use('/api/notes',       require('./routes/notes'));
-app.use('/api/upload',      require('./routes/upload'));
-app.use('/api/reports',     require('./routes/reports'));
+app.use('/api/labs',          require('./routes/labs'));
+app.use('/api/drugs',         require('./routes/drugs'));
+app.use('/api/research',      require('./routes/research'));
+app.use('/api/trials',        require('./routes/trials'));
+app.use('/api/analysis',      require('./routes/analysis'));
+app.use('/api/notes',         require('./routes/notes'));
+app.use('/api/upload',        require('./routes/upload'));
+app.use('/api/reports',       require('./routes/reports'));
+app.use('/api/history',       require('./routes/history'));
+// Personal data — persistent SQLite (previously localStorage-only)
+app.use('/api/appointments',  require('./routes/appointments'));
+app.use('/api/doctors',       require('./routes/doctors'));
+app.use('/api/exercises',     require('./routes/exercises'));
+app.use('/api/supplements',   require('./routes/supplements'));
 
-app.get('/api/health', (req,res) => res.json({ status:'ok', system:'Mirla Medical Intelligence', timestamp: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.json({
+  status: 'ok', system: 'Mirla Medical Intelligence', timestamp: new Date().toISOString()
+}));
+
+// Global error handler — prevents one bad route from crashing the server
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
 
 require('./services/scheduler').startScheduler();
+
+// Catch unhandled promise rejections so the process doesn't die
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err.message);
+});
 
 app.listen(PORT, () => {
   console.log(`\n🏥 Mirla Medical Intelligence API  →  http://localhost:${PORT}`);

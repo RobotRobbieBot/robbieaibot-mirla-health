@@ -7,12 +7,16 @@ import API from '../api';
 const card = { background:'linear-gradient(135deg,rgba(255,255,255,.5) 0%,rgba(254,252,232,.3) 100%)', borderRadius:'1.5rem', padding:'2rem', border:'1px solid #fde68a', marginBottom:'1.5rem' };
 
 const LABS = [
-  { key:'il6',     label:'IL-6 (pg/mL)',   refMax:7,   refMin:null, color:'#ef4444', warnAbove:20  },
-  { key:'tgf_beta',label:'TGF-β (ng/mL)',  refMax:10,  refMin:null, color:'#f97316', warnAbove:15  },
-  { key:'mrss',    label:'mRSS Score',      refMax:10,  refMin:null, color:'#a855f7', warnAbove:20  },
-  { key:'fvc',     label:'FVC (%)',         refMax:null,refMin:80,   color:'#3b82f6', warnBelow:70  },
-  { key:'wbc',     label:'WBC (K/µL)',      refMax:11,  refMin:4.5,  color:'#10b981', warnAbove:11  },
-  { key:'creatinine',label:'Creatinine (mg/dL)',refMax:1.2,refMin:null,color:'#6366f1',warnAbove:1.5},
+  { key:'il6',       label:'IL-6 (pg/mL)',      refMax:7,   refMin:null, color:'#ef4444', warnAbove:20  },
+  { key:'tgf_beta',  label:'TGF-β (ng/mL)',     refMax:10,  refMin:null, color:'#f97316', warnAbove:15  },
+  { key:'mrss',      label:'mRSS Score',         refMax:10,  refMin:null, color:'#a855f7', warnAbove:20  },
+  { key:'fvc',       label:'FVC (%)',            refMax:null,refMin:80,   color:'#3b82f6', warnBelow:70  },
+  { key:'wbc',       label:'WBC (K/µL)',         refMax:11,  refMin:4.5,  color:'#10b981', warnAbove:11  },
+  { key:'creatinine',label:'Creatinine (mg/dL)', refMax:1.2, refMin:null, color:'#6366f1', warnAbove:1.5 },
+  { key:'glucose',   label:'Glucose (mg/dL)',    refMax:100, refMin:70,   color:'#f59e0b', warnAbove:125 },
+  { key:'potassium', label:'Potassium (mEq/L)',  refMax:5.1, refMin:3.5,  color:'#14b8a6', warnAbove:5.5 },
+  { key:'hemoglobin',label:'Hemoglobin (g/dL)',  refMax:17,  refMin:12,   color:'#ec4899', warnBelow:11  },
+  { key:'lipase',    label:'Lipase (U/L)',        refMax:82,  refMin:11,   color:'#8b5cf6', warnAbove:200 },
 ];
 
 function getTrend(data, key) {
@@ -136,17 +140,34 @@ const LabDashboard = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-amber-700 font-medium border-b border-amber-200">
-                <th className="text-left py-2 pr-4">Date</th><th className="text-right pr-3">IL-6</th><th className="text-right pr-3">TGF-β</th><th className="text-right pr-3">mRSS</th><th className="text-right pr-3">FVC%</th><th className="text-right pr-3">WBC</th><th className="text-right">Cr</th><th></th>
+                <th className="text-left py-2 pr-3 whitespace-nowrap">Date</th>
+                <th className="text-left pr-3">Source</th>
+                <th className="text-right pr-2">WBC</th>
+                <th className="text-right pr-2">Hgb</th>
+                <th className="text-right pr-2">Gluc</th>
+                <th className="text-right pr-2">Cr</th>
+                <th className="text-right pr-2">K+</th>
+                <th className="text-right pr-2">Lipase</th>
+                <th className="text-right pr-2">IL-6</th>
+                <th className="text-right pr-2">FVC%</th>
+                <th className="text-left pl-3">Notes</th>
+                <th></th>
               </tr></thead>
-              <tbody>{labs.map(l => (
+              <tbody>{labs.filter(l => l.source_file || l.il6 || l.tgf_beta || l.mrss || l.fvc).map(l => (
                 <tr key={l.id} className="border-b border-amber-100 hover:bg-amber-50 transition-colors">
-                  <td className="py-2 pr-4 text-amber-800">{l.date}</td>
-                  <td className={`text-right pr-3 ${l.il6>20?'text-red-600 font-semibold':l.il6>7?'text-yellow-600':'text-green-700'}`}>{l.il6??'—'}</td>
-                  <td className={`text-right pr-3 ${l.tgf_beta>15?'text-red-600 font-semibold':l.tgf_beta>10?'text-yellow-600':'text-green-700'}`}>{l.tgf_beta??'—'}</td>
-                  <td className={`text-right pr-3 ${l.mrss>20?'text-red-600 font-semibold':l.mrss>10?'text-yellow-600':'text-green-700'}`}>{l.mrss??'—'}</td>
-                  <td className={`text-right pr-3 ${l.fvc<65?'text-red-600 font-semibold':l.fvc<80?'text-yellow-600':'text-green-700'}`}>{l.fvc??'—'}</td>
-                  <td className="text-right pr-3 text-amber-800">{l.wbc??'—'}</td>
-                  <td className="text-right text-amber-800">{l.creatinine??'—'}</td>
+                  <td className="py-2 pr-3 text-amber-800 whitespace-nowrap font-medium">{l.date}</td>
+                  <td className="pr-3 text-amber-500 text-xs max-w-[100px] truncate" title={l.source_file}>
+                    {l.source_file ? l.source_file.replace(/^\d+-/, '').replace('.pdf','') : '—'}
+                  </td>
+                  <td className={`text-right pr-2 ${l.wbc>11?'text-red-600 font-semibold':l.wbc&&l.wbc<4.5?'text-yellow-600':l.wbc?'text-green-700':'text-amber-300'}`}>{l.wbc??'—'}</td>
+                  <td className={`text-right pr-2 ${l.hemoglobin&&l.hemoglobin<11?'text-red-600 font-semibold':l.hemoglobin&&l.hemoglobin>17?'text-yellow-600':l.hemoglobin?'text-green-700':'text-amber-300'}`}>{l.hemoglobin??'—'}</td>
+                  <td className={`text-right pr-2 ${l.glucose&&l.glucose>125?'text-red-600 font-semibold':l.glucose&&l.glucose>100?'text-yellow-600':l.glucose&&l.glucose<70?'text-yellow-600':l.glucose?'text-green-700':'text-amber-300'}`}>{l.glucose??'—'}</td>
+                  <td className={`text-right pr-2 ${l.creatinine>1.5?'text-red-600 font-semibold':l.creatinine>1.2?'text-yellow-600':l.creatinine?'text-green-700':'text-amber-300'}`}>{l.creatinine??'—'}</td>
+                  <td className={`text-right pr-2 ${l.potassium&&(l.potassium>5.5||l.potassium<3.5)?'text-red-600 font-semibold':l.potassium&&(l.potassium>5.1||l.potassium<3.5)?'text-yellow-600':l.potassium?'text-green-700':'text-amber-300'}`}>{l.potassium??'—'}</td>
+                  <td className={`text-right pr-2 ${l.lipase&&l.lipase>200?'text-red-600 font-semibold':l.lipase&&l.lipase>82?'text-yellow-600':l.lipase?'text-green-700':'text-amber-300'}`}>{l.lipase??'—'}</td>
+                  <td className={`text-right pr-2 ${l.il6>20?'text-red-600 font-semibold':l.il6>7?'text-yellow-600':l.il6?'text-green-700':'text-amber-300'}`}>{l.il6??'—'}</td>
+                  <td className={`text-right pr-2 ${l.fvc&&l.fvc<65?'text-red-600 font-semibold':l.fvc&&l.fvc<80?'text-yellow-600':l.fvc?'text-green-700':'text-amber-300'}`}>{l.fvc??'—'}</td>
+                  <td className="pl-3 text-amber-600 text-xs max-w-[200px]" title={l.notes}>{l.notes ? l.notes.substring(0,60)+(l.notes.length>60?'…':'') : ''}</td>
                   <td><button onClick={()=>deleteLab(l.id)} className="ml-2 text-red-400 hover:text-red-600 transition-colors"><Trash2 size={14}/></button></td>
                 </tr>
               ))}</tbody>

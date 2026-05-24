@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { Heart, Lock, Eye, EyeOff } from 'lucide-react';
 
-// Simple hash to avoid storing plain text passwords
-const hashPassword = async (password) => {
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+// Simple hash — works on http:// (IP, custom hostname, localhost) without crypto.subtle
+const hashPassword = (password) => {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < password.length; i++) {
+    const ch = password.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 };
 
 const STORAGE_KEY = 'mirla_pw_hash';
@@ -38,13 +43,13 @@ const LoginPage = ({ onLogin }) => {
           setLoading(false);
           return;
         }
-        const hash = await hashPassword(password);
+        const hash = hashPassword(password);
         localStorage.setItem(STORAGE_KEY, hash);
         sessionStorage.setItem('mirla_auth', '1');
         onLogin();
       } else {
         // Login flow
-        const hash = await hashPassword(password);
+        const hash = hashPassword(password);
         const stored = localStorage.getItem(STORAGE_KEY);
         if (hash === stored) {
           sessionStorage.setItem('mirla_auth', '1');
@@ -158,8 +163,24 @@ const LoginPage = ({ onLogin }) => {
             </button>
           </form>
 
+          {/* Reset password */}
+          {!isFirstTime && (
+            <div className="text-center mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem(STORAGE_KEY);
+                  window.location.reload();
+                }}
+                className="text-amber-400 text-xs font-light underline underline-offset-2 hover:text-amber-600 transition-colors"
+              >
+                Forgot password? Reset it
+              </button>
+            </div>
+          )}
+
           {/* Footer quote */}
-          <p className="text-center text-amber-500 text-xs font-light mt-8 italic leading-relaxed">
+          <p className="text-center text-amber-500 text-xs font-light mt-6 italic leading-relaxed">
             "No one else sees it. Just you and your journey."
           </p>
         </div>
