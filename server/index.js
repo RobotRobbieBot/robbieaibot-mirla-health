@@ -41,7 +41,7 @@ app.use('/api/exercises',     require('./routes/exercises'));
 app.use('/api/supplements',   require('./routes/supplements'));
 
 app.get('/api/health', (req, res) => res.json({
-  status: 'ok', system: 'Mirla Medical Intelligence', timestamp: new Date().toISOString()
+  status: 'ok', system: `${process.env.PATIENT_NAME || 'Patient'} Health Intelligence`, timestamp: new Date().toISOString()
 }));
 
 // Global error handler — prevents one bad route from crashing the server
@@ -61,7 +61,8 @@ process.on('uncaughtException', (err) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🏥 Mirla Medical Intelligence API  →  http://localhost:${PORT}`);
-  console.log(`📊 React Dashboard               →  http://localhost:3000`);
-  console.log(`🔌 Health check                  →  http://localhost:${PORT}/api/health\n`);
+  const pName = process.env.PATIENT_NAME || 'Patient';
+  console.log(`\n🏥 ${pName} Health Intelligence API  →  http://localhost:${PORT}`);
+  console.log(`📊 React Dashboard                   →  http://localhost:3000`);
+  console.log(`🔌 Health check                      →  http://localhost:${PORT}/api/health\n`);
 });
