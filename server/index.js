@@ -10,7 +10,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'https://robbieaibot-mirla-health.vercel.app',
+  'https://mirla-health.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
